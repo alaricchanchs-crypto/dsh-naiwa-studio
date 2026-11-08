@@ -24,3 +24,10 @@
 
 - [dsh-plugin-wallpaper-engine-Yun](https://github.com/sdfsd85fds74f9d8/dsh-plugin-wallpaper-engine-Yun)
 - [dsh-whale-wallpaper-skin](https://github.com/fishcg/dsh-whale-wallpaper-skin)
+
+## 音效素材
+
+- ssets/startup/sfx-tick.mp3、ssets/startup/sfx-ticks-run.mp3
+  - 来源：[6shenhonghong9/dsh-startup-screen](https://github.com/6shenhonghong9/dsh-startup-screen)（lib/assets/）
+  - 用途：启动动画的齿轮/计时音效
+  - 说明：以上为界面音效，原仓库随插件分发；如权利人提出异议，将立即替换为自合成音轨。

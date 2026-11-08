@@ -616,7 +616,7 @@
   function loadLines() {
     ensureAudio()
     if (!AC) return
-    var names = [['vo-1', 'wav'], ['vo-2', 'wav'], ['vo-3', 'wav'], ['vo-4', 'wav'], ['sfx-tick', 'wav'], ['sfx-ticks-run', 'wav']]
+    var names = [['vo-1', 'wav'], ['vo-2', 'wav'], ['vo-3', 'wav'], ['vo-4', 'wav'], ['sfx-tick', 'mp3'], ['sfx-ticks-run', 'mp3']]
     names.forEach(function (pair) {
       var name = pair[0], ext = pair[1]
       var url = (window.__NAIWA_BOOT_BASE__ || '/dsh-naiwa-studio/startup/') + name + '.' + ext
