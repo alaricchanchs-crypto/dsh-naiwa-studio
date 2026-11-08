@@ -1,0 +1,8 @@
+node_modules/
+*.bak*
+*.bak-*
+preview/
+assets/startup/gl-*.png
+assets/startup/audition*/
+*.mp4.bak
+.DS_Store

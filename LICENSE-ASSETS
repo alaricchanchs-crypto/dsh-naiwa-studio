@@ -1,0 +1,26 @@
+# 素材许可（LICENSE-ASSETS）
+
+本仓库的**代码**按 MIT 许可（见 LICENSE）。
+本文件覆盖 `02-assets/` 下的**图像与音频**，它们不适用 MIT。
+
+## 授予的权利
+
+- 允许：个人使用、修改、随本项目一起分发、用于非商业演示
+- 要求：保留署名（见 CREDITS.md）；二次分发时同样沿用本许可
+- 禁止：商业用途（含付费课程、付费整合包、带收益的视频/直播），除非另行取得授权
+
+许可：**CC BY-NC 4.0**（https://creativecommons.org/licenses/by-nc/4.0/）
+
+## 范围与例外
+
+| 内容 | 说明 |
+|---|---|
+| `naiwa-startup.mp4` | 由 Minimax H3 生成，本项目作者声明可随仓库分发 |
+| `vo-*.wav` / `voice-*.mp3` | edge-tts（Microsoft Azure TTS）合成，使用时请保留“TTS 合成”说明 |
+| `naiwa*.png/jpg/webp` | 奶蛙形象为网友二创作品，本项目仅作主题展示；如权利人提出异议会立即移除 |
+| 壁纸照片 | **不在本仓库内**，由使用者自行上传；示例截图中的照片版权归各作者 |
+
+## 不在本许可内的第三方素材
+
+`03-third-party/` 目录下的文件（`dsh-naiwa` 的桌宠引擎与音频、`dsh-startup-screen` 的配音素材）
+版权归各自作者，**不得**按本项目的 MIT 或 CC BY-NC 许可再发布。

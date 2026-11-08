@@ -1,0 +1,23 @@
+{
+  "name": "dsh-naiwa-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "奶蛙工作区：奶黄气泡背景 + 开启动画 + 侧栏灵感池（合并 dsh-naiwa-skin 与 dsh-naiwa-theme 的手感）",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime"
+      ],
+      "platform": "web"
+    }
+  }
+}

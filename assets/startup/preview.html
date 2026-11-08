@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh">
+<meta charset="utf-8">
+<title>奶蛙启动动画 · 接缝过渡预览</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(100vw, 177.78vh); height: min(56.25vw, 100vh);
+    overflow: hidden; background: #000;
+  }
+  /* 原片自带顶部 76/1080 黑边，和启动页底色同色，不做裁切（裁切会连带横向放大） */
+  #video {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  /* 曝光补偿幕：把切点前的暗画面按实测差值逐帧抬亮（加色叠加） */
+  #veil {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: #000;
+  }
+
+  /* 切点后的收尾幕：让“亮起来”的势能缓慢落地，避免 0.1s 内掉 3 个亮度 */
+  #settle {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    mix-blend-mode: plus-lighter;
+    background: rgba(255,255,255,0.0);
+  }
+  /* 眼部余晖：切点后接住“发光→熄灭”的衰减 */
+  #bloom {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    mix-blend-mode: screen;
+    background:
+      radial-gradient(closest-side at 50% 36%, rgba(190,255,245,0.9), rgba(120,255,230,0.22) 42%, transparent 74%),
+      radial-gradient(closest-side at 50% 50%, rgba(140,240,235,0.22), transparent 70%);
+    background-size: 19% 15%, 28% 24%;
+    background-position: 50% 36%, 50% 49%;
+    background-repeat: no-repeat;
+    filter: blur(6px);
+    transform: scale(1);
+  }
+  /* 切点瞬间的扫描线：把注意力从眼睛上引开 */
+  #scan {
+    position: absolute; left: 0; right: 0; height: 4.5%; top: 0;
+    pointer-events: none; opacity: 0;
+    background: linear-gradient(to bottom, transparent, rgba(190,255,240,0.16) 45%, rgba(220,255,250,0.24) 52%, transparent);
+    filter: blur(2px);
+    mix-blend-mode: screen;
+  }
+  #hud {
+    position: absolute; left: 12px; bottom: 10px; color: #7fe9d6;
+    font: 12px/1.5 ui-monospace, Consolas, monospace; opacity: .75;
+    text-shadow: 0 0 8px rgba(0,0,0,.8); user-select: none;
+  }
+  #hud b { color: #d8fff6; }
+</style>
+<div id="stage">
+  <video id="video" src="naiwa-startup.mp4" muted playsinline preload="auto"></video>
+  <div id="veil"></div>
+  <div id="settle"></div>
+  <div id="bloom"></div>
+  <div id="scan"></div>
+</div>
+<div id="hud">t=<b id="t">0.000</b>  veil=<b id="v">0.00</b>  bloom=<b id="b">0.00</b>  · 空格重播 · ←/→ 逐帧</div>
+<script>
+  const v = document.getElementById('video')
+  const veil = document.getElementById('veil')
+  const bloom = document.getElementById('bloom')
+  const settle = document.getElementById('settle')
+  const scan = document.getElementById('scan')
+  const outT = document.getElementById('t')
+  const outV = document.getElementById('v')
+  const outB = document.getElementById('b')
+
+  // 实测参数
+  const CUT = 4.367        // 硬切点（30fps 的 4s11f）
+  const RAMP_START = 3.95  // 开始补偿（约 8 帧）
+  const RAMP_END = CUT
+  const BLOOM_HOLD = CUT + 0.02
+  const BLOOM_END = CUT + 0.45   // 余晖衰减
+  const SETTLE_END = CUT + 0.60  // 收尾幕落地
+  const SCAN_START = CUT - 0.05
+  const SCAN_END = CUT + 0.07
+
+  const VEIL_ONLY = new URLSearchParams(location.search).has('vo')
+  const RAW_MODE = new URLSearchParams(location.search).has('raw')
+  const smooth = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x) }
+
+  function apply(t) {
+    // 压暗幕：切点瞬间把 B 压到与 A 相同的亮度，再 0.55s 里放开——比“把 A 抬亮”干净，
+    // 因为 A 段的眼球发光保持原样，不会被我洗白
+    const DIM_AT_CUT = 0.2803
+    let ve = 0
+    if (t >= CUT) {
+      const k = (t - CUT) / 0.55
+      ve = k >= 1 ? 0 : DIM_AT_CUT * (1 - smooth(k))
+    }
+    veil.style.opacity = ve
+
+    // 余晖：切点后从满强度指数衰减，模拟眼球发光熄灭
+    let bl = 0
+    if (t >= BLOOM_HOLD) {
+      const k = (t - BLOOM_HOLD) / (BLOOM_END - BLOOM_HOLD)
+      bl = k >= 1 ? 0 : Math.pow(1 - k, 1.6) * 0.10
+    }
+    bloom.style.opacity = bl
+
+    // 收尾幕：切点瞬间接住 +3 的亮度，0.6s 内线性落地到 0
+    let se = 0
+    if (t >= CUT) {
+      const k = (t - CUT) / (SETTLE_END - CUT)
+      se = k >= 1 ? 0 : Math.pow(1 - k, 1.35)
+    }
+    settle.style.opacity = se
+
+    // 扫描线：切点前后各扫一次
+    let sc = 0, sy = 0
+    if (t >= SCAN_START && t <= SCAN_END) {
+      const k = (t - SCAN_START) / (SCAN_END - SCAN_START)
+      sc = Math.sin(Math.PI * k) * 0.85
+      sy = -12 + 124 * k
+      scan.style.top = sy + '%'
+    }
+    scan.style.opacity = sc
+
+    if (VEIL_ONLY) { bloom.style.opacity = 0; settle.style.opacity = 0; scan.style.opacity = 0 }
+    if (RAW_MODE) { veil.style.opacity = 0; bloom.style.opacity = 0; settle.style.opacity = 0; scan.style.opacity = 0 }
+    outT.textContent = t.toFixed(3)
+    outV.textContent = ve.toFixed(2)
+    outB.textContent = bl.toFixed(2)
+  }
+
+  let frozen = null
+  function loop() {
+    if (frozen === null) apply(v.currentTime)
+    requestAnimationFrame(loop)
+  }
+
+  function play() {
+    frozen = null
+    v.currentTime = 0
+    v.play().catch(() => {})
+  }
+
+  v.addEventListener('ended', () => { setTimeout(play, 650) })
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); play() }
+    if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
+      e.preventDefault()
+      v.pause()
+      frozen = Math.min(5.6, Math.max(0, (frozen === null ? v.currentTime : frozen) + (e.code === 'ArrowRight' ? 1 / 30 : -1 / 30)))
+      v.currentTime = frozen
+      apply(frozen)
+    }
+  })
+
+  // ?t=4.30 冻结在某一帧，方便截图比对
+  const q = new URLSearchParams(location.search)
+  if (q.has('t')) {
+    frozen = parseFloat(q.get('t'))
+    const seek = () => { v.pause(); v.currentTime = frozen; apply(frozen) }
+    if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true })
+  } else {
+    v.addEventListener('loadedmetadata', play, { once: true })
+  }
+  requestAnimationFrame(loop)
+</script>
+</html>

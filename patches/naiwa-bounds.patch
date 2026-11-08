@@ -1,0 +1,101 @@
+--- a/lib/client.js
++++ b/lib/client.js
+@@ -1539,12 +1539,24 @@
+         x: this.pos.x - box.x0 + (box.x0 + box.x1) / 2,
+         y: this.pos.y - box.y0 + box.y1,
+       }
+     }
+ 
+     Pet.prototype.setPosition = function (x, y) {
++      // [naiwa-studio] 只夹“可见蛙身”，允许画布那圈给果冻形变留的透明边跑到窗口外。
++      // 帧素材 320x305 里内容只有 171x289，按整块画布夹会让可见蛙身离窗口边差出约 100px。
++      var clampBox = this.el && this.el.getBoundingClientRect ? this.el.getBoundingClientRect() : null
++      if (clampBox && clampBox.width > 0 && clampBox.height > 0 && this.world && this.world.bounds) {
++        var wb = this.world.bounds
++        var ew = clampBox.width
++        var eh = clampBox.height
++        var deadX = Math.round(ew * (1 - 171 / 320) / 2)
++        var deadY = Math.round(eh * (1 - 289 / 305) / 2)
++        x = Math.min(Math.max(x, wb.left - deadX), wb.right - ew + deadX)
++        y = Math.min(Math.max(y, wb.top - deadY), wb.bottom - eh + deadY)
++      }
+       this.pos.x = x
+       this.pos.y = y
+       this.el.style.transform = 'translate3d(' + Math.round(x) + 'px,' + Math.round(y) + 'px,0)'
+     }
+ 
+     /** Canvas-space point → content-space point (inverse body + inverse mesh). */
+@@ -2851,18 +2863,39 @@
+       if (!(w > 0) || !(h > 0)) {
+         w = window.innerWidth
+         h = window.innerHeight
+       }
+       if (!(w > 0)) w = 800
+       if (!(h > 0)) h = 600
++      // [naiwa-studio] 物理世界比视口左右各宽一点，让“可见蛙身”能贴到窗口边。
++      // 胶囊碰撞体是按整帧建的，帧里可见内容只有中间部分，左右有约 23% 的透明边；
++      // 不放大边界，可见身体就永远离窗口边差出那一截（看起来像“空气墙”）。
++      var GUARD_X = Math.round(Math.max(1, w) * 0.14)
++      var GUARD_Y = Math.round(Math.max(1, h) * 0.06)
+       this.world.setBounds({
+-        left: 0,
+-        top: 0,
+-        right: Math.max(1, w),
+-        bottom: Math.max(1, h),
++        left: -GUARD_X,
++        top: -GUARD_Y,
++        right: Math.max(1, w) + GUARD_X,
++        bottom: Math.max(1, h) + GUARD_Y,
+       })
++      // 摆放初始位置只能用“看得见的视口”，不能用外扩过的物理边界，
++      // 否则右下角起始点会落到窗口外（窗口模式下看不到蛙）。
++      var prevView = this.viewBounds
++      this.viewBounds = { left: 0, top: 0, right: Math.max(1, w), bottom: Math.max(1, h) }
++      // 窗口/全屏切换时按比例搬蛙，避免“窗口里在右下角、全屏里跑到中间”的落差。
++      if (prevView && this.pets && this.pets.length) {
++        var sx = this.viewBounds.right / (prevView.right || 1)
++        var sy = this.viewBounds.bottom / (prevView.bottom || 1)
++        if (isFinite(sx) && isFinite(sy) && (Math.abs(sx - 1) > 0.01 || Math.abs(sy - 1) > 0.01)) {
++          for (var pi = 0; pi < this.pets.length; pi += 1) {
++            var pp = this.pets[pi]
++            if (!pp || !pp.pos) continue
++            pp.setPosition(pp.pos.x * sx, pp.pos.y * sy)
++          }
++        }
++      }
+     }
+ 
+     Group.prototype.areaHeight = function () {
+       return this.world.height()
+     }
+ 
+@@ -4614,13 +4647,13 @@
+       deps.group = group
+       CLIENT_STATE.group = group
+     
+       group.refreshBounds()
+     
+       var first = new Pet(deps, { scale: config.pet.scale })
+-      var bounds = world.bounds
++      var bounds = group.viewBounds || world.bounds
+       var box = first.visibleBox()
+       var placement = initialPlacement(config.pet.startPosition, bounds, box)
+       first.setPosition(placement.x, placement.y)
+       group.register(first)
+     
+       // The overlay may not have its final box during the first synchronous frame
+@@ -4631,13 +4664,13 @@
+         if (CLIENT_STATE.disposed) return
+         var before = { w: world.bounds.right, h: world.bounds.bottom }
+         group.refreshBounds()
+         var after = { w: world.bounds.right, h: world.bounds.bottom }
+         if (before.w === after.w && before.h === after.h) return
+         var b2 = first.visibleBox()
+-        var p2 = initialPlacement(config.pet.startPosition, world.bounds, b2)
++        var p2 = initialPlacement(config.pet.startPosition, group.viewBounds || world.bounds, b2)
+         first.setPosition(p2.x, p2.y)
+         group.setHover(first)
+         first.draw()
+       })
+       assets.onFrameReady = function () {
+         if (!CLIENT_STATE.group) return

@@ -1,0 +1,216 @@
+/* 奶蛙启动动画：注入到 index.html 的启动层样式
+   目标：在 React 挂载之前就铺满整屏，避免白闪，也不抢 DSH 自己的层 */
+html.nb-lock,
+html.nb-lock body {
+  background: #000 !important;
+  overflow: hidden !important;
+}
+
+/* 启动层在的时候，先把 React 的界面藏住，避免「先闪一下主界面再播片头」 */
+html.nb-lock #root {
+  opacity: 0 !important;
+}
+
+#nb-boot {
+  position: fixed;
+  inset: 0;
+  /* 比 DSH 自己的启动层（2147483000）再高一层，避免被盖住 */
+  z-index: 2147483600;
+  background: #000;
+  overflow: hidden;
+  contain: strict;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, "Microsoft YaHei", monospace;
+  color: #bff5ea;
+  -webkit-font-smoothing: antialiased;
+}
+
+#nb-boot.nb-out {
+  transition: opacity .42s ease, transform .42s ease, filter .42s ease;
+  opacity: 0;
+  transform: scale(1.035);
+  filter: blur(3px);
+}
+
+#nb-stage {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  overflow: hidden;
+}
+
+/* 按 16:9 等比放大的画框：视频与所有叠加层都装在这里，
+   这样面板的百分比坐标才和视频画面里的 HUD 对齐 */
+#nb-frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: hidden;
+}
+
+#nb-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+#nb-fx {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+
+#nb-veil {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#nb-glow {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(closest-side at 50% 36%, rgba(190, 255, 245, .9), rgba(120, 255, 230, .22) 42%, transparent 74%),
+    radial-gradient(closest-side at 50% 50%, rgba(140, 240, 235, .22), transparent 70%);
+  background-size: 19% 15%, 28% 24%;
+  background-position: 50% 36%, 50% 49%;
+  background-repeat: no-repeat;
+  filter: blur(6px);
+}
+
+#nb-scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .14;
+  mix-blend-mode: multiply;
+  background: repeating-linear-gradient(to bottom,
+    rgba(0, 0, 0, 0) 0, rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, .55) 3px, rgba(0, 0, 0, .55) 4px);
+}
+
+/* 四块面板的文字层：坐标按视频里 HUD 面板的位置（百分比） */
+.nb-panel {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .45s ease;
+  text-shadow: 0 0 10px rgba(0, 0, 0, .85);
+}
+.nb-panel.nb-on { opacity: 1; }
+
+#nb-p-tl { left: 4.9%; top: 12.2%; width: 17%; }
+#nb-p-bl { left: 4.9%; top: 77.6%; width: 17%; }
+/* 右侧两块用 right 对齐，而不是 left:77.2% —— 这样它们与左边的边距完全镜像，
+   文字不会相对自己的边框往右偏出去 */
+#nb-p-tr { right: 4.9%; top: 12.2%; width: 17%; }
+#nb-p-br { right: 4.9%; top: 77.6%; width: 17%; }
+
+.nb-title {
+  font-size: clamp(9px, .82vw, 14px);
+  letter-spacing: .22em;
+  color: #dcfff8;
+  margin-bottom: .9em;
+  white-space: nowrap;
+}
+
+.nb-line {
+  font-size: clamp(7px, .58vw, 10px);
+  line-height: 1.75;
+  letter-spacing: .08em;
+  color: rgba(168, 240, 226, .72);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nb-line b { color: #7ff0d8; font-weight: 500; }
+.nb-dim { color: rgba(140, 205, 195, .5) !important; }
+
+/* 底部进度条 */
+#nb-progress {
+  position: absolute;
+  left: 50%;
+  bottom: 9.5%;
+  width: 26%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity .35s ease;
+}
+#nb-progress.nb-on { opacity: 1; }
+
+#nb-bar {
+  height: 3px;
+  background: rgba(150, 235, 220, .26);
+  box-shadow: inset 0 0 0 1px rgba(150, 235, 220, .16);
+  overflow: hidden;
+}
+#nb-bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #4de0c4, #d7fff5);
+  box-shadow: 0 0 12px rgba(120, 255, 235, .8);
+  transition: width .28s ease;
+}
+
+#nb-status {
+  margin-top: 10px;
+  text-align: center;
+  font-size: clamp(7px, .58vw, 10px);
+  letter-spacing: .3em;
+  color: rgba(170, 245, 230, .75);
+}
+
+#nb-skip {
+  position: absolute;
+  /* 放右下角：右上角是窗口的最小化/最大化/关闭，别去抢 */
+  right: 26px;
+  bottom: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  letter-spacing: .18em;
+  color: rgba(180, 245, 232, .55);
+  border: 1px solid rgba(150, 235, 220, .28);
+  border-radius: 999px;
+  padding: 6px 14px 6px 9px;
+  cursor: pointer;
+  pointer-events: auto;
+  background: rgba(0, 20, 18, .35);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity .5s ease, color .2s ease, border-color .2s ease, transform .2s ease;
+}
+/* 用 !important：客户端兜底的 markup 里带内联 opacity:0 / pointer-events:none，
+   普通权重压不过内联样式，会造成按钮永远不出现 */
+#nb-skip.nb-show { opacity: 1 !important; pointer-events: auto !important; }
+#nb-skip:hover {
+  color: #d8fff6;
+  border-color: rgba(190, 255, 240, .55);
+  transform: translateY(-1px);
+}
+
+/* 剩余进度小环：吃掉的那部分变亮，看起来像「片头还剩多少」 */
+#nb-skip i {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, rgba(0, 18, 16, .9) 62%, transparent 63%),
+    conic-gradient(from -90deg, rgba(120, 255, 232, .85) var(--p, 0%), rgba(120, 255, 232, .16) 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #nb-glow, #nb-scan { display: none; }
+  #nb-boot.nb-out { transition: opacity .18s linear; transform: none; filter: none; }
+}

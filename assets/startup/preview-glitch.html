@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh">
+<meta charset="utf-8">
+<title>奶蛙启动动画 · 赛博故障版</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #stage {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(100vw, 177.78vh); height: min(56.25vw, 100vh);
+    overflow: hidden; background: #000;
+  }
+  #video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  /* 压暗幕：切点瞬间把后段压到前段亮度，再放开 */
+  #veil {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    background: #000;
+  }
+  /* 故障层：切点前后用 canvas 重绘撕裂帧 */
+  #glitch { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+  /* 眼部余晖 */
+  #bloom {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0;
+    mix-blend-mode: screen;
+    background:
+      radial-gradient(closest-side at 50% 36%, rgba(190,255,245,0.9), rgba(120,255,230,0.22) 42%, transparent 74%),
+      radial-gradient(closest-side at 50% 50%, rgba(140,240,235,0.22), transparent 70%);
+    background-size: 19% 15%, 28% 24%;
+    background-position: 50% 36%, 50% 49%;
+    background-repeat: no-repeat;
+    filter: blur(6px);
+  }
+  /* 常驻细微扫描纹，让画面有 CRT 质感（很淡） */
+  #scanlines {
+    position: absolute; inset: 0; pointer-events: none; opacity: .16;
+    background: repeating-linear-gradient(to bottom,
+      rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,0.55) 3px, rgba(0,0,0,0.55) 4px);
+    mix-blend-mode: multiply;
+  }
+  #hud {
+    position: absolute; left: 12px; bottom: 10px; color: #7fe9d6;
+    font: 12px/1.5 ui-monospace, Consolas, monospace; opacity: .7;
+    text-shadow: 0 0 8px rgba(0,0,0,.8); user-select: none;
+  }
+  #hud b { color: #d8fff6; }
+</style>
+<div id="stage">
+  <video id="video" src="naiwa-startup.mp4" muted playsinline preload="auto"></video>
+  <canvas id="glitch"></canvas>
+  <div id="veil"></div>
+  <div id="bloom"></div>
+  <div id="scanlines"></div>
+</div>
+<div id="hud">t=<b id="t">0.000</b>  glitch=<b id="g">0.00</b>  dim=<b id="v">0.00</b>  · 空格重播 · ←/→ 逐帧 · ?t=4.36 冻结</div>
+<script>
+  const v = document.getElementById('video')
+  const cv = document.getElementById('glitch')
+  const veil = document.getElementById('veil')
+  const bloom = document.getElementById('bloom')
+  const outT = document.getElementById('t')
+  const outG = document.getElementById('g')
+  const outV = document.getElementById('v')
+
+  const CUT = 4.367
+  const DIM_AT_CUT = 0.2803
+  const DIM_RELEASE = 0.55
+  const GL_START = CUT - 0.10     // 故障开始（提前一点，像系统开始报错）
+  const GL_END = CUT + 0.22       // 故障结束
+  const BLOOM_END = CUT + 0.45
+
+  const smooth = (x) => { x = Math.min(1, Math.max(0, x)); return x * x * (3 - 2 * x) }
+
+  // 确定性随机：同一帧号永远画出同一张，方便逐帧比对
+  function rand(seed) {
+    let x = Math.sin(seed * 12.9898) * 43758.5453
+    return x - Math.floor(x)
+  }
+
+  function glitchAmount(t) {
+    if (t < GL_START || t > GL_END) return 0
+    const k = (t - GL_START) / (GL_END - GL_START)
+    // 切点前快速爬升，切点后指数衰减，末尾再补两次小抽动
+    let a
+    if (t < CUT) a = smooth((t - GL_START) / (CUT - GL_START)) * 0.85
+    else a = Math.pow(1 - (t - CUT) / (GL_END - CUT), 1.9) * 1.0
+    const burst = (t > CUT + 0.10 && t < CUT + 0.15) ? 0.35 : 0
+    return Math.min(1, a + burst)
+  }
+
+  // 两条离屏通道：红 / 青，用来做真正的 RGB 分离（比整屏叠色干净得多）
+  const ocR = document.createElement('canvas')
+  const ocC = document.createElement('canvas')
+
+  function channelPass(target, src, w, h, off, color, dx, alpha) {
+    if (off.width !== w || off.height !== h) { off.width = w; off.height = h }
+    const o = off.getContext('2d')
+    o.globalCompositeOperation = 'source-over'
+    o.globalAlpha = 1
+    o.clearRect(0, 0, w, h)
+    o.drawImage(src, 0, 0, w, h)
+    o.globalCompositeOperation = 'multiply'
+    o.fillStyle = color
+    o.fillRect(0, 0, w, h)
+    target.globalCompositeOperation = 'lighter'
+    target.globalAlpha = alpha
+    target.drawImage(off, dx, 0, w, h)
+    target.globalAlpha = 1
+  }
+
+  const ocWork = document.createElement('canvas')
+
+  function drawGlitch(t, amount) {
+    const w = v.videoWidth || 1920
+    const h = v.videoHeight || 1080
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h }
+    if (ocWork.width !== w || ocWork.height !== h) { ocWork.width = w; ocWork.height = h }
+    const ctx = ocWork.getContext('2d')          // 先在离屏画“撕裂帧”
+    const frame = Math.floor(t * 30)
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.globalCompositeOperation = 'source-over'
+    ctx.globalAlpha = 1
+    ctx.clearRect(0, 0, w, h)
+    ctx.drawImage(v, 0, 0, w, h)
+
+    // 1) 横向切片错位（真正制造撕裂）
+    const bands = 3 + Math.round(amount * 6)
+    for (let i = 0; i < bands; i += 1) {
+      const r1 = rand(frame * 7.7 + i * 1.13)
+      const r2 = rand(frame * 11.3 + i * 2.71)
+      if (r1 > 0.55) continue
+      const by = Math.floor(rand(frame * 5.1 + i * 3.7) * h)
+      const bh = Math.max(8, Math.floor((0.015 + r2 * 0.075) * h))
+      const dx = (rand(frame * 2.3 + i * 4.4) - 0.5) * 150 * amount
+      ctx.drawImage(v, 0, by, w, bh, dx, by, w, bh)
+    }
+
+
+    // 3) 受损亮线
+    const lines = 1 + Math.round(amount * 2)
+    for (let i = 0; i < lines; i += 1) {
+      const ly = Math.floor(rand(frame * 9.7 + i * 5.3) * h)
+      const lh = 1 + Math.round(rand(frame * 4.1 + i) * 2)
+      ctx.fillStyle = `rgba(210,255,250,${0.25 + amount * 0.45})`
+      ctx.fillRect(0, ly, w, lh)
+    }
+
+    // 4) 稀疏噪点块（少量，避免糊成一片）
+    const blocks = Math.round(amount * 14)
+    for (let i = 0; i < blocks; i += 1) {
+      const bx = Math.floor(rand(frame * 13.7 + i * 2.9) * w)
+      const by = Math.floor(rand(frame * 17.3 + i * 1.7) * h)
+      const bw = Math.floor(10 + rand(frame * 3.3 + i) * 60)
+      const bh = Math.floor(2 + rand(frame * 6.1 + i) * 8)
+      ctx.fillStyle = rand(frame + i) > 0.45
+        ? `rgba(235,255,252,${0.08 + amount * 0.22})`
+        : `rgba(255,50,95,${0.06 + amount * 0.18})`
+      ctx.fillRect(bx, by, bw, bh)
+    }
+
+    // 2) 输出：清空画布后，只用红 + 青两条通道合成撕裂帧，亮度与原始一致
+    const out = cv.getContext('2d')
+    out.setTransform(1, 0, 0, 1, 0, 0)
+    out.globalCompositeOperation = 'source-over'
+    out.globalAlpha = 1
+    out.clearRect(0, 0, w, h)
+    const dx = (5 + 12 * amount)
+    channelPass(out, ocWork, w, h, ocR, '#ff0000', -dx, 1)
+    channelPass(out, ocWork, w, h, ocC, '#00ffff', dx, 1)
+    out.globalCompositeOperation = 'source-over'
+  }
+
+  function apply(t) {
+    let ve = 0
+    if (t >= CUT) {
+      const k = (t - CUT) / DIM_RELEASE
+      ve = k >= 1 ? 0 : DIM_AT_CUT * (1 - smooth(k))
+    }
+    veil.style.opacity = ve
+
+    let bl = 0
+    if (t >= CUT) {
+      const k = (t - CUT) / (BLOOM_END - CUT)
+      bl = k >= 1 ? 0 : Math.pow(1 - k, 1.6) * 0.10
+    }
+    bloom.style.opacity = bl
+
+    const amount = glitchAmount(t)
+    outG.textContent = amount.toFixed(2)
+    if (amount > 0.01 && v.readyState >= 2) {
+      drawGlitch(t, amount)
+      cv.style.display = 'block'
+      v.style.visibility = 'hidden'
+    } else {
+      cv.style.display = 'none'
+      v.style.visibility = 'visible'
+    }
+    outT.textContent = t.toFixed(3)
+    outV.textContent = ve.toFixed(2)
+  }
+
+  let frozen = null
+  function loop() {
+    if (frozen === null) apply(v.currentTime)
+    requestAnimationFrame(loop)
+  }
+  function play() { frozen = null; v.currentTime = 0; v.play().catch(() => {}) }
+  v.addEventListener('ended', () => setTimeout(play, 800))
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') { e.preventDefault(); play() }
+    if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
+      e.preventDefault(); v.pause()
+      const step = e.code === 'ArrowRight' ? 1 / 30 : -1 / 30
+      frozen = Math.min(5.6, Math.max(0, (frozen === null ? v.currentTime : frozen) + step))
+      v.currentTime = frozen
+      const seek = () => apply(frozen)
+      v.addEventListener('seeked', seek, { once: true })
+    }
+  })
+
+  const q = new URLSearchParams(location.search)
+  if (q.has('t')) {
+    frozen = parseFloat(q.get('t'))
+    const seek = () => { v.pause(); v.currentTime = frozen; const go = () => apply(frozen); v.addEventListener('seeked', go, { once: true }) }
+    if (v.readyState >= 1) seek(); else v.addEventListener('loadedmetadata', seek, { once: true })
+  } else {
+    v.addEventListener('loadedmetadata', play, { once: true })
+  }
+  requestAnimationFrame(loop)
+</script>
+</html>

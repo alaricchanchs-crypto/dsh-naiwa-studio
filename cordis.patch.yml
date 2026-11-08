@@ -1,0 +1,6 @@
+# 这个文件只负责把插件注册进 cordis。
+# id 故意不叫 dsh-naiwa-studio：包名会被 bundle 机制按名字自动注册一次，
+# 这里再用同名就会变成两个 entry，route 注册撞车报 duplicate exact route。
+- insert:
+    - id: naiwa-studio-skin
+      name: 'dsh-naiwa-studio'
