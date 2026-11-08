@@ -48,3 +48,14 @@ git apply patches/naiwa-bounds.patch   # 在 dsh-naiwa 目录内执行
 
 - 代码：MIT
 - 图像与音频：CC BY-NC 4.0（禁商用）
+
+## 安装
+
+```powershell
+dsh plugin --profile desktop add https://github.com/alaricchanchs-crypto/dsh-naiwa-studio
+```
+
+然后**完全重启 DSH Desktop**。完整步骤、可选依赖（壁纸引擎 / 桌宠）、验收清单与回滚，
+见 **[INSTALL.md](INSTALL.md)**；一键脚本见 `scripts/install.ps1`。
+
+给别人（或别人的 AI）复现这套效果：把仓库地址 + `AGENTS.md` 一起给它，让它按协议执行。
