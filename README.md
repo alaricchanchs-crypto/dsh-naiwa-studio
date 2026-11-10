@@ -23,6 +23,30 @@ dsh plugin --profile desktop add "github:weikangzeng07-ops/dsh-naiwa"
 # 2) 装本插件
 dsh plugin --profile desktop add "github:alaricchanchs-crypto/dsh-naiwa-studio"
 
+### 没装 git 怎么办
+
+`github:` 这种方式是靠 git 拉代码的，没装 git 会报 `git not found`。两条替代路线，任选一条：
+
+**A. 用脚本一键装（推荐，不需要 git）**
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-no-git.ps1
+```
+
+它会把源码包下载并解压到 `%LOCALAPPDATA%\dsh-naiwa-studio`，再用 `link:` 方式装进 profile。
+
+**B. 手动：下载 ZIP → 解压 → link 安装**
+
+1. 打开 https://github.com/alaricchanchs-crypto/dsh-naiwa-studio → `Code` → `Download ZIP`
+2. 解压到任意目录，例如 `D:\dsh-naiwa-studio`
+3. 执行（路径换成你的）：
+
+```powershell
+dsh plugin --profile desktop add "link:D:/dsh-naiwa-studio"
+```
+
+> `link:` 装的是本地目录，以后改代码不用重装；卸载用 `dsh plugin --profile desktop remove dsh-naiwa-studio`。
+
 # 3) 重启 Desktop
 ```
 
