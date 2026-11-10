@@ -21,7 +21,7 @@ dsh plugin --profile desktop add dsh-plugin-wallpaper-engine
 dsh plugin --profile desktop add "github:weikangzeng07-ops/dsh-naiwa"
 
 # 2) 装本插件
-dsh plugin --profile desktop add "github:<你的用户名>/dsh-naiwa-studio"
+dsh plugin --profile desktop add "github:alaricchanchs-crypto/dsh-naiwa-studio"
 
 # 3) 重启 Desktop
 ```
