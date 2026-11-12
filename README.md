@@ -8,7 +8,7 @@
 
 ![启动动画](screenshots/1-splash.jpg)
 
-| 数据流汇聚（1.2s） | 故障转场（4.37s） |
+| 数据流汇聚（1.2s） | 故障转场（4.38s） |
 | --- | --- |
 | ![数据流](screenshots/1b-tunnel.jpg) | ![故障转场](screenshots/5-glitch.jpg) |
 
