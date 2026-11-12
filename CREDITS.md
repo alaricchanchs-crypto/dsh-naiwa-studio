@@ -1,5 +1,7 @@
 # 致谢与来源
 
+> 代码均为 MIT，许可证全文见 [`docs/third-party/`](./docs/third-party/)；素材授权状态见 [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md)。
+
 ## 代码
 
 | 项目 | 用途 | 许可 |
