@@ -19,13 +19,6 @@
 | --- | --- |
 | ![主界面](screenshots/2-main.png) | ![灵感池](screenshots/3-wisdom.png) |
 
-<details>
-<summary>启动动画逐帧（4.26s → 4.60s，睁眼瞬间的故障转场）</summary>
-
-![逐帧](screenshots/6-glitch-strip.jpg)
-
-</details>
-
 
 ## 功能
 
