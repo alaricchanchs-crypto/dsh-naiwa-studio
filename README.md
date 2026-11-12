@@ -8,15 +8,23 @@
 
 ![启动动画](screenshots/1-splash.jpg)
 
+| 数据流汇聚（1.2s） | 故障转场（4.37s） |
+| --- | --- |
+| ![数据流](screenshots/1b-tunnel.jpg) | ![故障转场](screenshots/5-glitch.jpg) |
+
 ## 效果
 
 | 主界面 | 灵感池 |
 | --- | --- |
 | ![主界面](screenshots/2-main.png) | ![灵感池](screenshots/3-wisdom.png) |
 
-故障转场（启动动画 4.37s 处的信号干扰）：
+<details>
+<summary>启动动画逐帧（4.26s → 4.60s，睁眼瞬间的故障转场）</summary>
 
-![故障转场](screenshots/5-glitch.jpg)
+![逐帧](screenshots/6-glitch-strip.jpg)
+
+</details>
+
 
 ## 功能
 
