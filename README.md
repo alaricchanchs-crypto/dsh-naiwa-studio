@@ -8,9 +8,10 @@
 
 ![启动动画](screenshots/1-splash.jpg)
 
-| 数据流汇聚（1.2s） | 故障转场（4.38s） |
+| 启动动画关键帧 | |
 | --- | --- |
-| ![数据流](screenshots/1b-tunnel.jpg) | ![故障转场](screenshots/5-glitch.jpg) |
+| **数据流汇聚（1.2s）**<br>![数据流](screenshots/1b-tunnel.jpg) | **全息成形（3.3s）**<br>![全息成形](screenshots/1c-holo.jpg) |
+| **睁眼（4.2s）**<br>![睁眼](screenshots/1d-eyes.jpg) | **故障转场（4.38s）**<br>![故障转场](screenshots/5-glitch.jpg) |
 
 ## 效果
 
