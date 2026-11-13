@@ -1279,8 +1279,26 @@ function installEngineSkin() {
     }
   }
 
-  // 选择壁纸网格里不再插上传卡：会被他们的排序夹在壁纸中间。上传入口放到灵感池弹窗。
-  const decorateGrid = () => {}
+  // 选择壁纸网格末尾的「+ 上传壁纸」。
+  // 只用 CSS order 把它排到最后，不再反复 appendChild 抢位置（那会和他们重排自激）。
+  const decorateGrid = () => {
+    const grid = document.querySelector('.we-picker__grid')
+    if (!grid) return
+    if (grid.querySelector('[data-naiwa-up-tile]')) return
+    const tile = document.createElement('button')
+    tile.type = 'button'
+    tile.dataset.naiwaUpTile = '1'
+    tile.className = 'naiwa-up-tile'
+    tile.title = '上传 JPG / PNG / MP4'
+    tile.style.order = '9999'
+    tile.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>上传壁纸</span>'
+    tile.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      uploadWallpapers()
+    })
+    grid.appendChild(tile)
+  }
 
   // 表情包快捷面板（.meme-picker）里的 + 卡
   const memeAdd = async (files, tag) => {
