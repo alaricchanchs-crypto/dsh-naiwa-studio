@@ -628,10 +628,6 @@ const STUDIO_CSS = `
 /* 浮在抽屉右上角：不参与列表布局，不会和他们的重排/滚动打架 */
 .naiwa-up-qp--float{position:absolute;right:16px;top:86px;z-index:6;width:auto;min-height:32px;margin:0;padding:0 12px;gap:5px;font-size:11px;border-radius:999px;background:rgba(127,240,216,.14);box-shadow:0 6px 18px rgba(0,0,0,.35)}
 .naiwa-up-qp--float span{display:inline}
-/* 抽屉右上角的上传按钮：我们自己的浮层，不参与他们的布局 */
-.naiwa-up-fab{position:fixed;z-index:2147482000;display:inline-flex;align-items:center;gap:5px;height:32px;padding:0 12px;border:1.5px dashed rgba(127,240,216,.72);border-radius:999px;background:rgba(10,20,18,.82);color:#a7f5e4;font:500 11px/1 ui-monospace,monospace;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 6px 18px rgba(0,0,0,.45)}
-.naiwa-up-fab:hover{background:rgba(127,240,216,.18);border-color:#7ff0d8}
-.naiwa-up-fab svg{width:14px;height:14px;display:block}
 /* 鲸鱼娘吉祥物：只在视觉上隐藏，节点保留——它是侧边壁纸抽屉的开关 */
 .we-rope{opacity:0!important;pointer-events:none!important}
 /* 壁纸与配色交给 dsh-plugin-wallpaper-engine 后，别再叠自家暖光罩 + 居中奶油高光 */
@@ -1374,69 +1370,9 @@ function installEngineSkin() {
   }
 
   // 壁纸引擎的侧边抽屉（.we-qp）里也放一个 + 上传壁纸，放在卡片列表最前面
-  // 抽屉里的「+ 上传壁纸」改成我们自己的浮层按钮：完全不动他们的 DOM，
-  // 只按抽屉的矩形把自己的按钮摆到抽屉右上角。这样不会和他们列表的重排/滚动打架。
-  let fabEl = null
-  const ensureFab = () => {
-    if (fabEl && document.body.contains(fabEl)) return fabEl
-    fabEl = document.createElement('button')
-    fabEl.type = 'button'
-    fabEl.id = 'naiwa-up-fab'
-    fabEl.className = 'naiwa-up-fab'
-    fabEl.title = '上传壁纸（jpg / png / webp / mp4）'
-    fabEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>上传壁纸</span>'
-    fabEl.addEventListener('click', (event) => {
-      event.preventDefault()
-      event.stopPropagation()
-      const input = document.createElement('input')
-      input.type = 'file'
-      input.accept = 'image/jpeg,image/png,image/webp,video/mp4'
-      input.multiple = true
-      input.addEventListener('change', async () => {
-        const files = [...(input.files || [])]
-        if (!files.length) return
-        const label = fabEl.querySelector('span')
-        const old = label.textContent
-        label.textContent = '上传中…'
-        let ok = 0
-        for (const file of files) {
-          try {
-            const buf = await file.arrayBuffer()
-            const title = file.name.replace(/\.[^.]+$/, '')
-            const res = await fetch('/wallpaper-engine/upload?title=' + encodeURIComponent(title), {
-              method: 'POST',
-              headers: { 'content-type': file.type || 'application/octet-stream' },
-              body: buf,
-            })
-            if (res.ok) ok += 1
-          } catch (e) { /* 单张失败继续 */ }
-        }
-        label.textContent = old
-        toast(ok ? '已上传 ' + ok + ' 张壁纸' : '上传失败：jpg / png / webp / mp4')
-        if (ok) {
-          const refresh = [...document.querySelectorAll('.we-picker__btn')].find((b) => /刷新/.test(b.textContent || ''))
-          if (refresh) refresh.click()
-        }
-      })
-      input.click()
-    })
-    document.body.appendChild(fabEl)
-    return fabEl
-  }
-
-  const decorateQuickPanel = () => {
-    const panel = document.querySelector('.we-qp')
-    if (!panel) { if (fabEl) fabEl.style.display = 'none'; return }
-    const r = panel.getBoundingClientRect()
-    if (!r.width || !r.height) { if (fabEl) fabEl.style.display = 'none'; return }
-    const fab = ensureFab()
-    // 放在抽屉「壁纸 / 外观 / 播放」那一行的右端空白处，避开「下一张」和右上角三个按钮
-    const left = Math.min(Math.max(8, r.left + r.width - 132), window.innerWidth - 140)
-    const top = Math.min(Math.max(8, r.top + 158), window.innerHeight - 48)
-    fab.style.display = 'inline-flex'
-    fab.style.left = Math.round(left) + 'px'
-    fab.style.top = Math.round(top) + 'px'
-  }
+  // 抽屉里不再放上传入口：浮层会挡住「壁纸/外观/播放」标签，插进列表又会破坏滚动。
+  // 上传统一走设置页 → 壁纸引擎 → 自定义壁纸 →「+ 上传壁纸」。
+  const decorateQuickPanel = () => {}
 
   // rAF 合并 + 重入锁：避免「我们插节点 → 触发 observer → 再插」的自激循环
   let decorating = false
@@ -1448,8 +1384,6 @@ function installEngineSkin() {
     })
   }
   const observer = new MutationObserver(runDecorate)
-  // 抽屉开合/窗口缩放不一定会触发 DOM 变更，用轮询兜住按钮位置
-  setInterval(decorateQuickPanel, 500)
   observer.observe(document.body, { childList: true, subtree: true })
   decorate()
   decorateGrid()
