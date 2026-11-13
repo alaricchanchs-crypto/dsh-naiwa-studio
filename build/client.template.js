@@ -625,6 +625,9 @@ const STUDIO_CSS = `
 .naiwa-up-qp{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-height:52px;margin:0 0 8px;border:1.5px dashed rgba(127,240,216,.7);border-radius:12px;background:rgba(127,240,216,.10);color:#a7f5e4;font:500 12px/1 'PingFang SC','Microsoft YaHei',sans-serif;letter-spacing:.08em;cursor:pointer;transition:background .16s ease,border-color .16s ease}
 .naiwa-up-qp:hover{background:rgba(127,240,216,.18);border-color:#7ff0d8}
 .naiwa-up-qp svg{width:14px;height:14px;display:block}
+/* 浮在抽屉右上角：不参与列表布局，不会和他们的重排/滚动打架 */
+.naiwa-up-qp--float{position:absolute;right:16px;top:86px;z-index:6;width:auto;min-height:32px;margin:0;padding:0 12px;gap:5px;font-size:11px;border-radius:999px;background:rgba(127,240,216,.14);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.naiwa-up-qp--float span{display:inline}
 /* 鲸鱼娘吉祥物：只在视觉上隐藏，节点保留——它是侧边壁纸抽屉的开关 */
 .we-rope{opacity:0!important;pointer-events:none!important}
 /* 壁纸与配色交给 dsh-plugin-wallpaper-engine 后，别再叠自家暖光罩 + 居中奶油高光 */
@@ -1372,13 +1375,13 @@ function installEngineSkin() {
 
   // 壁纸引擎的侧边抽屉（.we-qp）里也放一个 + 上传壁纸，放在卡片列表最前面
   const decorateQuickPanel = () => {
-    const list = document.querySelector('.we-qp__list--cards')
+    // 只插一次、之后再也不挪动位置。之前的写法是「不在第一位就 insertBefore」，
+    // 他们的列表每次重排都会触发 observer → 我们再挪 → 又触发，形成死循环（抽搐 + 滚不到底）。
+    const panel = document.querySelector('.we-qp')
+    if (!panel) return
+    if (panel.querySelector('[data-naiwa-up-qp]')) return
+    const list = panel.querySelector('.we-qp__list--cards')
     if (!list) return
-    const had = list.querySelector('[data-naiwa-up-qp]')
-    if (had) {
-      if (list.firstElementChild !== had) list.insertBefore(had, list.firstElementChild)
-      return
-    }
     const card = document.createElement('button')
     card.type = 'button'
     card.dataset.naiwaUpQp = '1'
@@ -1423,7 +1426,16 @@ function installEngineSkin() {
     list.insertBefore(card, list.firstElementChild)
   }
 
-  const observer = new MutationObserver(() => { decorate(); decorateGrid(); decorateMeme(); decorateQuickPanel() })
+  // rAF 合并 + 重入锁：避免「我们插节点 → 触发 observer → 再插」的自激循环
+  let decorating = false
+  const runDecorate = () => {
+    if (decorating) return
+    decorating = true
+    requestAnimationFrame(() => {
+      try { decorate(); decorateGrid(); decorateMeme(); decorateQuickPanel() } finally { decorating = false }
+    })
+  }
+  const observer = new MutationObserver(runDecorate)
   observer.observe(document.body, { childList: true, subtree: true })
   decorate()
   decorateGrid()
